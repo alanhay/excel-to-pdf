@@ -13,11 +13,12 @@ import org.apache.poi.hssf.converter.ExcelToHtmlConverter;
 import org.w3c.dom.Document;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 
-public class ExcelToPdfConverter {
+public class XlsToPdfConverter {
 
 	public static void main(String[] args) throws Exception {
-
-		File file = new File(ExcelToPdfConverter.class.getResource("/test.xls").toURI());
+		File file = new File(XlsToPdfConverter.class.getResource("/test.xls").toURI());
+		
+		//only works with .xls - see the other example for .xlsx files
 		Document doc = ExcelToHtmlConverter.process(file);
 
 		debugHtml(doc);
@@ -26,7 +27,7 @@ public class ExcelToPdfConverter {
 
 	public static void debugHtml(Document doc) throws Exception {
 		DOMSource source = new DOMSource(doc);
-		FileWriter writer = new FileWriter(new File("./test.html"));
+		FileWriter writer = new FileWriter(new File("./test-xls.html"));
 		StreamResult result = new StreamResult(writer);
 
 		TransformerFactory transformerFactory = TransformerFactory.newInstance();
@@ -35,7 +36,7 @@ public class ExcelToPdfConverter {
 	}
 
 	public static void writePdf(Document doc) throws Exception {
-		FileOutputStream out = new FileOutputStream("./test.pdf");
+		FileOutputStream out = new FileOutputStream("./test-xls.pdf");
 		ITextRenderer renderer = new ITextRenderer();
 		renderer.setDocument(doc, null);
 		renderer.layout();
