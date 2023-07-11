@@ -17,14 +17,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==================================================================== */
 
-import java.io.BufferedReader;
-import java.io.Closeable;
-import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
+import java.util.stream.IntStream;
 import java.util.Formatter;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,7 +53,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
  */
 public class ExcelToHtmlConverter {
 	private final Workbook wb;
-	private final Appendable output;
+	private final OutputStream output;
 	private boolean completeHTML;
 	private Formatter out;
 	private boolean gotBounds;
@@ -104,7 +98,7 @@ public class ExcelToHtmlConverter {
 	 *
 	 * @return An object for converting the workbook to HTML.
 	 */
-	public static ExcelToHtmlConverter create(Workbook wb, Appendable output) {
+	public static ExcelToHtmlConverter create(Workbook wb, OutputStream output) {
 		return new ExcelToHtmlConverter(wb, output);
 	}
 
@@ -120,7 +114,7 @@ public class ExcelToHtmlConverter {
 	 *
 	 * @return An object for converting the workbook to HTML.
 	 */
-	public static ExcelToHtmlConverter create(String path, Appendable output) throws IOException {
+	public static ExcelToHtmlConverter create(String path, OutputStream output) throws IOException {
 		return create(new FileInputStream(path), output);
 	}
 
@@ -137,7 +131,7 @@ public class ExcelToHtmlConverter {
 	 *
 	 * @return An object for converting the workbook to HTML.
 	 */
-	public static ExcelToHtmlConverter create(InputStream in, Appendable output) throws IOException {
+	public static ExcelToHtmlConverter create(InputStream in, OutputStream output) throws IOException {
 		try {
 			Workbook wb = WorkbookFactory.create(in);
 			return create(wb, output);
@@ -146,7 +140,7 @@ public class ExcelToHtmlConverter {
 		}
 	}
 
-	private ExcelToHtmlConverter(Workbook wb, Appendable output) {
+	private ExcelToHtmlConverter(Workbook wb, OutputStream output) {
 		if (wb == null) {
 			throw new NullPointerException("wb");
 		}
@@ -183,7 +177,13 @@ public class ExcelToHtmlConverter {
 			return;
 		}
 
-		ExcelToHtmlConverter toHtml = create(args[0], new PrintWriter(new FileWriter(args[1])));
+//		ExcelToHtmlConverter toHtml = create(args[0], new PrintWriter(new FileWriter(args[1])));
+        ExcelToHtmlConverter toHtml = create(args[0], new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+
+            }
+        });
 		toHtml.setCompleteHTML(true);
 		toHtml.printPage();
 	}
@@ -196,9 +196,12 @@ public class ExcelToHtmlConverter {
 		try {
 			ensureOut();
 			if (completeHTML) {
-				out.format("<?xml version=\"1.0\" encoding=\"iso-8859-1\" ?>%n");
-				out.format("<html>%n");
+//				out.format("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>%n");
+                out.format("<!DOCTYPE html>%n");
+				out.format("<html lang=\"en\">%n");
 				out.format("<head>%n");
+                //        print the style under header
+                printInlineStyle();
 				out.format("</head>%n");
 				out.format("<body>%n");
 			}
@@ -218,7 +221,8 @@ public class ExcelToHtmlConverter {
 	}
 
 	public void print() {
-		printInlineStyle();
+//        print the style under header
+//		printInlineStyle();
 		printSheets();
 	}
 
@@ -344,13 +348,16 @@ public class ExcelToHtmlConverter {
 
 	private void printSheets() {
 		ensureOut();
-		Sheet sheet = wb.getSheetAt(0);
-		printSheet(sheet);
+//        get all sheets in the wb in 1 html
+        for (int i = 0; i < wb.getNumberOfSheets(); i++) {
+            Sheet sheet = wb.getSheetAt(i);
+            printSheet(sheet);
+        }
 	}
 
 	public void printSheet(Sheet sheet) {
 		ensureOut();
-		out.format("<table class=%s>%n", DEFAULTS_CLASS);
+		out.format("<table class=\"%s\">%n", DEFAULTS_CLASS);
 		printCols(sheet);
 		printSheetContent(sheet);
 		out.format("</table>%n");
@@ -396,7 +403,7 @@ public class ExcelToHtmlConverter {
 				colName.insert(0, (char) ('A' + cnum % 26));
 				cnum /= 26;
 			} while (cnum > 0);
-			out.format("    <th class=%s>%s</th>%n", COL_HEAD_CLASS, colName);
+			out.format("    <th class=\"%s\">%s</th>%n", COL_HEAD_CLASS, colName);
 		}
 		out.format("  </tr>%n");
 		out.format("</thead>%n");
@@ -411,9 +418,9 @@ public class ExcelToHtmlConverter {
 			Row row = rows.next();
 
 			out.format("  <tr>%n");
-			out.format("    <td class=%s>%d</td>%n", ROW_HEAD_CLASS, row.getRowNum() + 1);
+			out.format("    <td class=\"%s\">%d</td>%n", ROW_HEAD_CLASS, row.getRowNum() + 1);
 			for (int i = firstColumn; i < endColumn; i++) {
-				String content = "&nbsp;";
+				String content = "&#xa0;";
 				String attrs = "";
 				CellStyle style = null;
 				if (i >= row.getFirstCellNum() && i < row.getLastCellNum()) {
@@ -427,11 +434,11 @@ public class ExcelToHtmlConverter {
 						CellFormatResult result = cf.apply(cell);
 						content = result.text;
 						if (content.equals("")) {
-							content = "&nbsp;";
+							content = "&#xa0;";
 						}
 					}
 				}
-				out.format("    <td class=%s %s>%s</td>%n", styleName(style), attrs, content);
+                out.format("    <td class=\"%s\" %s>%s</td>%n",styleName(style), attrs, content);
 			}
 			out.format("  </tr>%n");
 		}
